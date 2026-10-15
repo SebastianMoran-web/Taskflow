@@ -1,16 +1,14 @@
-from fastapi import FastAPI
+from pydantic import BaseModel
 
-app = FastAPI(title="Taskflow API")
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
+class Post(BaseModel):
+    title: str
+    content: str
 
-@app.get("/version")
-def get_version():
-    return{"version" :  "1.0"}
 
-@app.get("/ping")
-def ping():
-    return{"ping" : "pong"}
-    
+post = Post(
+    title="Mi primer post",
+    content="Contenido del post"
+)
+
+print(post)
