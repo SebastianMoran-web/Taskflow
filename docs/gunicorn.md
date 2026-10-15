@@ -68,6 +68,14 @@ sebas@sebas:~$ curl http://127.0.0.1:8000/health
 {"status":"ok"}
 ```
 
+**Endpoint /version** 
+
+![Respuesta de /version](gunicorn-version.png)
+
+**Endpoint /ping**
+
+![Respuesta ping](gunicorn-ping.png)
+
 ## 3. Qué hace el comando
 
 ```bash
