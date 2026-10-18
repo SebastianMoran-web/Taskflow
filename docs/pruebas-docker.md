@@ -81,7 +81,6 @@ docker build -t taskflow-backend .
 docker images
 ```
 
-> 📸 **CAPTURA 4** (`img/04-build.png`): final del `docker build` (sin errores) y `docker images` con `taskflow-backend` en la lista.
 
 ![Build de la imagen](img/docker-build.png)
 ![Build de la imagen](img/docker-images.png)
@@ -143,7 +142,6 @@ docker ps -a               # ya no existe
 
 Después se vuelve a crear con la sentencia de arranque de la sección 3.
 
-> 📸 **CAPTURA 9** (`img/09-ciclo-vida.png`): los comandos anteriores con su salida (si no cabe, divide en dos capturas: `09a` parar/arrancar/reiniciar y `09b` parar/eliminar).
 
 ![Ciclo de vida](img/docker-start.png)
 ![Ciclo de vida](img/docker-stop.png)
