@@ -1,14 +1,13 @@
-from pydantic import BaseModel
+from fastapi import FastAPI
 
+from app.routers import projects, tasks
 
-class Post(BaseModel):
-    title: str
-    content: str
+tags_metadata = [
+    {"name": "tasks", "description": "Gestión de tareas"},
+    {"name": "projects", "description": "Gestión de proyectos"},
+]
 
+app = FastAPI(title="Taskflow API", openapi_tags=tags_metadata)
 
-post = Post(
-    title="Mi primer post",
-    content="Contenido del post"
-)
-
-print(post)
+app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(projects.router, prefix="/api/v1")
