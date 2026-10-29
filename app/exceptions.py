@@ -1,3 +1,16 @@
+"""
+Manejo global de errores.
+ 
+Todas las respuestas de error de la API comparten el mismo esquema:
+
+{"error": "mensaje legible", "error_code": "CODIGO_ESTABLE"}
+ 
+El cliente puede mostrar `error` al usuario y programar su lógica contra
+`error_code`, que no cambia aunque se reformule el mensaje.
+
+
+"""
+
 import logging
 
 from fastapi import FastAPI, Request
@@ -10,6 +23,20 @@ logger = logging.getLogger("taskflow.errors")
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+
+    """
+    
+    Captura cualquier excepción no controlada y responde 500
+
+    Sin este handler, un fallo inesperado devuelve una
+    página de error genérica (o el stacktrace en modo debug), lo que filtra
+    detalles internos y rompe el contrato JSON de la API
+    
+    El detalle completo se escribe solo en el log del servidor, con el request_id para localizarlo. 
+    El cliente recibe un mensaje genérico, nunca el stacktrace.
+    
+    """
+
 
     request_id = getattr(request.state, "request_id", "-")
     logger.error(
