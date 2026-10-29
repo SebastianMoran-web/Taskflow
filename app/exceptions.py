@@ -23,7 +23,7 @@ logger = logging.getLogger("taskflow.errors")
 
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-
+    
     """
     
     Captura cualquier excepción no controlada y responde 500
@@ -40,22 +40,29 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
     request_id = getattr(request.state, "request_id", "-")
     logger.error(
-
         "Excepción no controlada [request_id=%s] %s %s",
         request_id,
         request.method,
         request.url.path,
-        exc_info=exc,
+        exc_info=exc,  # incluye el stacktrace completo en el log interno
     )
-
     return JSONResponse(
-
         status_code=500,
         content={
             "error": "Error interno del servidor",
             "error_code": "INTERNAL_SERVER_ERROR",
         },
     )
+
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Error interno del servidor",
+            "error_code": "INTERNAL_SERVER_ERROR",
+        },
+    )
+
 
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
 
