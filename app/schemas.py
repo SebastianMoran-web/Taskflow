@@ -3,8 +3,13 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class ProjectCreate(BaseModel):
+# Los schemas de Pydantic definen el contrato de datos de entrada/salida de la API.
+# Se diferencian de los modelos de BD en que no gestionan la persistencia,
+# sino la validación, tipado y serialización de la interfaz HTTP.
 
+
+class ProjectCreate(BaseModel):
+    """Schema de entrada para registrar un proyecto."""
     name: str = Field(
         ...,
         min_length=1,
@@ -19,7 +24,7 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectRead(ProjectCreate):
-
+    """Schema de salida con los datos del proyecto."""
     id: int = Field(..., gt=0, description="Identificador único del proyecto")
     created_at: datetime = Field(..., description="Fecha y hora de creación")
 
@@ -27,7 +32,7 @@ class ProjectRead(ProjectCreate):
 
 
 class TaskCreate(BaseModel):
-
+    """Schema de entrada para registrar una tarea."""
     title: str = Field(
         ...,
         min_length=1,
@@ -47,9 +52,21 @@ class TaskCreate(BaseModel):
 
 
 class TaskRead(TaskCreate):
-
+    """Schema de salida con la tarea completa."""
     id: int = Field(..., gt=0, description="Identificador único de la tarea")
     completed: bool = Field(default=False, description="Estado de la tarea")
     created_at: datetime = Field(..., description="Fecha y hora de creación")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserCreate(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., max_length=120)
+
+
+class UserRead(UserCreate):
+    id: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
