@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
-
 # Los schemas de Pydantic definen el contrato de datos de entrada/salida de la API.
 # Se diferencian de los modelos de BD en que no gestionan la persistencia,
 # sino la validación, tipado y serialización de la interfaz HTTP.
@@ -29,6 +28,7 @@ class ProjectRead(ProjectCreate):
     created_at: datetime = Field(..., description="Fecha y hora de creación")
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class TaskCreate(BaseModel):
@@ -59,7 +59,6 @@ class TaskRead(TaskCreate):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: str = Field(..., max_length=120)
@@ -70,3 +69,37 @@ class UserRead(UserCreate):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+class ProjectDetail(ProjectRead):
+    tasks: list[TaskRead] = []
+
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    completed: bool | None = None
+    project_id: int | None = None
+    category_id: int |None = None
+    assignee_id: int | None = None
+
+
+class CategoryCreate(BaseModel):
+    name: str
+
+class CategoryUpdate(BaseModel):
+    name:str | None = None
+
+class CategoryRead(BaseModel):
+    id: int 
+    name: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CategoryDetail(CategoryRead):
+    tasks: list[TaskRead] = []
