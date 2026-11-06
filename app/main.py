@@ -8,8 +8,7 @@ from app.config import CORS_ORIGINS
 from app.database import Base, engine
 from app.exceptions import register_exception_handlers
 from app.middleware import process_time_middleware, request_id_middleware
-from app.routers import debug, projects, tasks, users
-
+from app.routers import categories, debug, projects, tasks, users
 # Formato del log del servidor: aquí queda el detalle completo de los errores.
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +22,7 @@ tags_metadata = [
     {"name": "projects", "description": "Gestión de proyectos"},
     {"name": "users", "description": "Gestión de usuarios"},
     {"name": "debug", "description": "Solo pruebas de la práctica 1.4 (eliminar en producción)"},
+    {"name": "categories", "description": "Gestión de categorías"},
 ]
 
 app = FastAPI(title="Taskflow API", openapi_tags=tags_metadata)
@@ -48,3 +48,4 @@ app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(debug.router, prefix="/api/v1")
+app.include_router(categories.router, prefix="/api/v1")
