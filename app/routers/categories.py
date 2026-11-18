@@ -1,65 +1,92 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from typing import Optional
+
+from fastapi import APIRouter, Depends, status
+from sqlalchemy import func
+from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.models import Category
+from app.dependencies import pagination_params
+from app.exceptions import ConflictError, NotFoundError
+from app.models import Category, Task
 from app.schemas import CategoryCreate, CategoryDetail, CategoryRead, CategoryUpdate
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-def _obtener(category_id: int, db: Session) -> Category:
-    categoria = db.get(Category, category_id)
-    if not categoria:
-        raise HTTPException(status_code=404, detail="La categoría no existe")
-    return categoria
+def _get_category(db: Session, category_id: int) -> Category:
+    category = db.get(Category, category_id)
+    if category is None:
+        raise NotFoundError("Categoría", category_id, "CATEGORY_NOT_FOUND")
+    return category
+
+
+def _check_name_free(db: Session, name: str, exclude_id: Optional[int] = None):
+    q = db.query(Category).filter(Category.name == name)
+    if exclude_id is not None:
+        q = q.filter(Category.id != exclude_id)
+    if q.first() is not None:
+        raise ConflictError(
+            f"Ya existe una categoría llamada '{name}'", "CATEGORY_NAME_DUPLICATED"
+        )
 
 
 @router.get("", response_model=list[CategoryRead])
-def listar_categorias(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
-    db: Session = Depends(get_db),
-):
-    return db.query(Category).order_by(Category.id).offset(skip).limit(limit).all()
+def list_categories(page: dict = Depends(pagination_params), db: Session = Depends(get_db)):
+    return (
+        db.query(Category)
+        .order_by(Category.id)
+        .offset(page["skip"])
+        .limit(page["limit"])
+        .all()
+    )
 
 
 @router.get("/{category_id}", response_model=CategoryDetail)
-def detalle_categoria(category_id: int, db: Session = Depends(get_db)):
-    return _obtener(category_id, db)
+def get_category(category_id: int, db: Session = Depends(get_db)):
+    category = (
+        db.query(Category)
+        .options(selectinload(Category.tasks))
+        .filter(Category.id == category_id)
+        .first()
+    )
+    if category is None:
+        raise NotFoundError("Categoría", category_id, "CATEGORY_NOT_FOUND")
+    return category
 
 
-@router.post("", response_model=CategoryRead, status_code=201)
-def crear_categoria(datos: CategoryCreate, db: Session = Depends(get_db)):
-    nueva = Category(**datos.model_dump())
-    db.add(nueva)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Ya existe una categoría con ese nombre")
-    db.refresh(nueva)
-    return nueva
+@router.post("", response_model=CategoryRead, status_code=status.HTTP_201_CREATED)
+def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
+    _check_name_free(db, data.name)
+    category = Category(**data.model_dump())
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return category
 
 
 @router.put("/{category_id}", response_model=CategoryRead)
-def editar_categoria(category_id: int, datos: CategoryUpdate, db: Session = Depends(get_db)):
-    categoria = _obtener(category_id, db)
-    for campo, valor in datos.model_dump(exclude_unset=True).items():
-        setattr(categoria, campo, valor)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Ya existe una categoría con ese nombre")
-    db.refresh(categoria)
-    return categoria
-
-
-@router.delete("/{category_id}", status_code=204)
-def eliminar_categoria(category_id: int, db: Session = Depends(get_db)):
-    categoria = _obtener(category_id, db)
-    db.delete(categoria)  
+def update_category(category_id: int, data: CategoryUpdate, db: Session = Depends(get_db)):
+    category = _get_category(db, category_id)
+    changes = data.model_dump(exclude_unset=True)
+    if changes.get("name") is not None:
+        _check_name_free(db, changes["name"], exclude_id=category_id)
+    for field, value in changes.items():
+        setattr(category, field, value)
     db.commit()
-    return Response(status_code=204)
+    db.refresh(category)
+    return category
+
+
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_category(category_id: int, db: Session = Depends(get_db)):
+    category = _get_category(db, category_id)
+    n = db.query(func.count(Task.id)).filter(Task.category_id == category_id).scalar()
+    if n:
+        # Bloqueo: no se borra una categoría en uso (ver models.py)
+        raise ConflictError(
+            f"No se puede borrar la categoría {category_id}: tiene {n} tarea(s) "
+            "asociada(s). Reasígnalas o bórralas primero.",
+            "CATEGORY_IN_USE",
+        )
+    db.delete(category)
+    db.commit()

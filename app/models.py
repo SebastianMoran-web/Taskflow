@@ -38,9 +38,11 @@ class Project(Base):
     description: Mapped[Optional[str]] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
-    # cascade="all, delete-orphan": una tarea no tiene sentido sin proyecto
-    # (project_id es obligatorio), así que al borrar el proyecto se borran sus
-    # tareas.
+    # DECISIÓN (Práctica 1.6): BORRADO EN CASCADA.
+    # Una tarea no tiene sentido sin proyecto (project_id es obligatorio), así
+    # que al borrar el proyecto se borran sus tareas.
+    # - ORM: cascade="all, delete-orphan"
+    # - BD:  ondelete="CASCADE" en Task.project_id
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
@@ -52,7 +54,10 @@ class Category(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(50), unique=True)
 
-    # Sin cascade de borrado: eliminar una categoría no elimina sus tareas.
+    # DECISIÓN (Práctica 1.6): BLOQUEO.
+    # La categoría es solo una etiqueta: borrarla no debe destruir tareas ni
+    # dejarlas huérfanas. Si tiene tareas, el router responde 409. Como red de
+    # seguridad, la BD usa ondelete="RESTRICT" en Task.category_id.
     tasks: Mapped[list["Task"]] = relationship(back_populates="category")
 
 
@@ -66,9 +71,13 @@ class Task(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     # FK obligatoria a Project (criterio de aceptación).
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE")
+    )
     # FKs opcionales: una tarea puede no tener categoría ni responsable.
-    category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"))
+    category_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("categories.id", ondelete="RESTRICT")
+    )
     assignee_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
 
     # Lado "muchos" de cada relación. back_populates enlaza los dos lados: al

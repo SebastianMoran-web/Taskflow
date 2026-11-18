@@ -30,7 +30,6 @@ class ProjectRead(ProjectCreate):
     model_config = ConfigDict(from_attributes=True)
 
 
-
 class TaskCreate(BaseModel):
     """Schema de entrada para registrar una tarea."""
     title: str = Field(
@@ -49,6 +48,12 @@ class TaskCreate(BaseModel):
         gt=0,
         description="ID del proyecto asociado (debe ser mayor a 0)"
     )
+    category_id: Optional[int] = Field(
+        None, gt=0, description="ID de la categoría (opcional)"
+    )
+    assignee_id: Optional[int] = Field(
+        None, gt=0, description="ID del usuario responsable (opcional)"
+    )
 
 
 class TaskRead(TaskCreate):
@@ -58,6 +63,15 @@ class TaskRead(TaskCreate):
     created_at: datetime = Field(..., description="Fecha y hora de creación")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TaskPage(BaseModel):
+    """Respuesta paginada de GET /tasks, con metadatos de paginación."""
+    total: int
+    skip: int
+    limit: int
+    items: list[TaskRead]
+
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -75,9 +89,18 @@ class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
 
+
 class ProjectDetail(ProjectRead):
     tasks: list[TaskRead] = []
 
+
+class ProjectSummary(BaseModel):
+    """Contadores de tareas de un proyecto."""
+    id: int
+    name: str
+    total_tasks: int
+    completed_tasks: int
+    pending_tasks: int
 
 
 class TaskUpdate(BaseModel):
@@ -85,18 +108,20 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     completed: bool | None = None
     project_id: int | None = None
-    category_id: int |None = None
+    category_id: int | None = None
     assignee_id: int | None = None
 
 
 class CategoryCreate(BaseModel):
     name: str
 
+
 class CategoryUpdate(BaseModel):
-    name:str | None = None
+    name: str | None = None
+
 
 class CategoryRead(BaseModel):
-    id: int 
+    id: int
     name: str
     model_config = ConfigDict(from_attributes=True)
 

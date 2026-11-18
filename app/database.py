@@ -1,7 +1,7 @@
 """Conexión a la base de datos: engine, SessionLocal, Base y get_db()."""
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import DATABASE_URL, DB_TIMEOUT
@@ -35,6 +35,12 @@ engine = create_engine(
 # el objeto conserva sus valores tras el commit.
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
+@event.listens_for(engine, "connect")
+def _fk_on(dbapi_conn, _):
+    cur = dbapi_conn.cursor()
+    cur.execute("PRAGMA foreign_keys=ON")
+    cur.close()
+
 
 class Base(DeclarativeBase):
     """Clase base de la que heredan todos los modelos."""
@@ -51,3 +57,5 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+

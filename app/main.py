@@ -8,7 +8,7 @@ from app.config import CORS_ORIGINS
 from app.database import Base, engine
 from app.exceptions import register_exception_handlers
 from app.middleware import process_time_middleware, request_id_middleware
-from app.routers import categories, debug, projects, tasks, users
+from app.routers import categories, projects, tasks, users
 # Formato del log del servidor: aquí queda el detalle completo de los errores.
 logging.basicConfig(
     level=logging.INFO,
@@ -47,5 +47,4 @@ app.add_middleware(
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
-app.include_router(debug.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")

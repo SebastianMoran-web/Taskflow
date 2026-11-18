@@ -1,69 +1,94 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from typing import Literal, Optional
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Task, Project
-from app.schemas import TaskCreate, TaskRead, TaskUpdate
+from app.dependencies import pagination_params
+from app.exceptions import NotFoundError
+from app.models import Category, Project, Task, User
+from app.schemas import TaskCreate, TaskPage, TaskRead, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.post("", response_model=TaskRead, status_code=201)
-def crear_tarea(tarea: TaskCreate, db: Session = Depends(get_db)):
-    nueva = Task(**tarea.model_dump())
-    db.add(nueva)
-    db.commit()
-    db.refresh(nueva)
-    return nueva
+def _get_task(db: Session, task_id: int) -> Task:
+    task = db.get(Task, task_id)
+    if task is None:
+        raise NotFoundError("Tarea", task_id, "TASK_NOT_FOUND")
+    return task
 
-@router.get("", response_model=list[TaskRead])
-def listar_tareas(
 
-    project_id: int | None = None,
-    completed: bool | None = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+def _check_refs(db: Session, project_id=None, category_id=None, assignee_id=None):
+    """404 diferenciado según qué referencia no existe."""
+    if project_id is not None and db.get(Project, project_id) is None:
+        raise NotFoundError("Proyecto", project_id, "PROJECT_NOT_FOUND")
+    if category_id is not None and db.get(Category, category_id) is None:
+        raise NotFoundError("Categoría", category_id, "CATEGORY_NOT_FOUND")
+    if assignee_id is not None and db.get(User, assignee_id) is None:
+        raise NotFoundError("Usuario", assignee_id, "USER_NOT_FOUND")
+
+
+@router.get("", response_model=TaskPage)
+def list_tasks(
+    project_id: Optional[int] = None,
+    category_id: Optional[int] = None,
+    completed: Optional[bool] = None,
+    order_by: Literal["id", "title", "completed", "created_at"] = "id",
+    page: dict = Depends(pagination_params),
     db: Session = Depends(get_db),
-
 ):
-
-    Query = db.query(Task)
+    q = db.query(Task)
     if project_id is not None:
-        query = query.filtrer(Task.project_id == project_id)
+        q = q.filter(Task.project_id == project_id)
+    if category_id is not None:
+        q = q.filter(Task.category_id == category_id)
     if completed is not None:
-        query = query.filtrer(Task.completed == completed)
-    return query.order_by(Task.id).offset(skip).limit(limit).all()
+        q = q.filter(Task.completed == completed)
+
+    total = q.count()
+    items = (
+        q.order_by(getattr(Task, order_by))
+        .offset(page["skip"])
+        .limit(page["limit"])
+        .all()
+    )
+    return {"total": total, "skip": page["skip"], "limit": page["limit"], "items": items}
 
 
 @router.get("/{task_id}", response_model=TaskRead)
-def detalle_tarea(task_id: int, db: Session = Depends(get_db)):
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    return _get_task(db, task_id)
 
-    tarea = db.get(Task, task_id)
-    if not tarea:
-        raise HTTPException(status_code=404, detail="La tarea no existe")
-    return tarea
+
+@router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
+def create_task(data: TaskCreate, db: Session = Depends(get_db)):
+    _check_refs(db, data.project_id, data.category_id, data.assignee_id)
+    task = Task(**data.model_dump())
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
 
 @router.put("/{task_id}", response_model=TaskRead)
-def editar_tarea(task_id: int, datos: TaskUpdate, db: Session = Depends(get_db)):
-    tarea = db.get(Task, task_id)
-    if not tarea: 
-        raise HTTPException(status_code=404, detail="La tarea no existe")
-    cambios = datos.model_dump(exclude_unset=True)
-    if "project_id" in cambios:
-        if cambios["project_id"] is None or not db.get(Project, cambios["project_id"]):
-            raise HTTPException(status_code=404, detail="El proyecto no exite")
-    for campo, valor in cambios.items():
-        setattr(tarea, campo, valor)
+def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
+    task = _get_task(db, task_id)
+    changes = data.model_dump(exclude_unset=True)
+    _check_refs(
+        db,
+        changes.get("project_id"),
+        changes.get("category_id"),
+        changes.get("assignee_id"),
+    )
+    for field, value in changes.items():
+        setattr(task, field, value)
     db.commit()
-    db.refresh(tarea)
-    return tarea
+    db.refresh(task)
+    return task
 
-@router.delete("/{task_id}", status_code=204)
-def eliminar_tarea(task_id: int, db: Session = Depends(get_db)):
-     tarea = db.get(Task, task_id)
-     if not tarea: 
-            raise HTTPException(status_code=404, detail="La tarea no existe")
-     db.delete(tarea)
-     db.commit()
-     return Response(status_code=204)    
-    
+
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    db.delete(_get_task(db, task_id))
+    db.commit()
