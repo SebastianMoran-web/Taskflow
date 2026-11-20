@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 # Los schemas de Pydantic definen el contrato de datos de entrada/salida de la API.
@@ -76,15 +76,26 @@ class TaskPage(BaseModel):
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: str = Field(..., max_length=120)
+    password: str = Field(..., min_length=4, max_length=72)
+    role: Literal["user", "admin"] = "user"    
 
-
-class UserRead(UserCreate):
+class UserRead(BaseModel):
     id: int
+    username: str
+    email: str
+    role: str
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
 
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None

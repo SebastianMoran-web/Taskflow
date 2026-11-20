@@ -1,10 +1,10 @@
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Security
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import pagination_params
+from app.dependencies import pagination_params, get_current_user
 from app.exceptions import NotFoundError
 from app.models import Category, Project, Task, User
 from app.schemas import TaskCreate, TaskPage, TaskRead, TaskUpdate
@@ -62,7 +62,11 @@ def get_task(task_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
-def create_task(data: TaskCreate, db: Session = Depends(get_db)):
+def create_task(
+    data: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["tasks:write"]),
+):
     _check_refs(db, data.project_id, data.category_id, data.assignee_id)
     task = Task(**data.model_dump())
     db.add(task)
@@ -72,7 +76,12 @@ def create_task(data: TaskCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=TaskRead)
-def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
+def update_task(
+    task_id: int,
+    data: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["tasks:write"]),
+):
     task = _get_task(db, task_id)
     changes = data.model_dump(exclude_unset=True)
     _check_refs(
@@ -89,6 +98,10 @@ def update_task(task_id: int, data: TaskUpdate, db: Session = Depends(get_db)):
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["tasks:write"]),
+):
     db.delete(_get_task(db, task_id))
     db.commit()

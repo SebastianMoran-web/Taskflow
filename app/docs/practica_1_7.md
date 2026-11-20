@@ -1,0 +1,8 @@
+## Decisiones de Seguridad y Análisis de Amenazas (Práctica 1.7)
+
+Para proteger la API y evitar los fallos más habituales en autenticación, se han tomado las siguientes decisiones:
+
+* **Contraseñas seguras (`bcrypt`):** Nunca se guardan contraseñas en texto plano. Se usa `passlib[bcrypt]` con un coste (*rounds*) de **12**, lo que hace que calcular cada hash sea intencionadamente lento para frenar ataques de fuerza bruta. Además, `bcrypt` añade automáticamente un *salt* único y aleatorio a cada usuario para que dos usuarios con la misma contraseña tengan hashes completamente distintos
+* **Evitar descubrir usuarios en el login:** Si alguien falla al iniciar sesión, la API siempre responde con un `401` y el mismo mensaje genérico (`"Usuario o contraseña incorrectos"`). Así un atacante no puede adivinar qué nombres de usuario existen en la base de datos y cuáles no
+* **Tokens JWT con caducidad y rotación:** Los `access_token` caducan a los **30 minutos** para limitar el daño si alguien intercepta uno. Para no obligar al usuario a iniciar sesión cada media hora, se usa un `refresh_token` de un solo uso: cada vez que se utiliza para pedir un token nuevo, el anterior queda invalidado y no se puede volver a usar
+* **Permisos por rol y cabeceras estándar:** Solo las rutas de escritura (`POST`, `PUT`, `DELETE`) requieren autenticación, y además comprueban los permisos según el rol (`tasks:write` para usuarios normales y `projects:write` para administradores). Cuando falta el token o ha caducado, se devuelve un `401` junto con la cabecera `WWW-Authenticate: Bearer`

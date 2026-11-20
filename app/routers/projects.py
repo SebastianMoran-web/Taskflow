@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status,Security
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
-from app.dependencies import pagination_params
+from app.dependencies import pagination_params, get_current_user
 from app.exceptions import NotFoundError
-from app.models import Project, Task
+from app.models import Project, Task, User
 from app.schemas import (
     ProjectCreate,
     ProjectDetail,
@@ -68,7 +68,11 @@ def project_summary(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
-def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
+def create_project(
+    data: ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["projects:write"]),
+):
     project = Project(**data.model_dump())
     db.add(project)
     db.commit()
@@ -77,7 +81,12 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{project_id}", response_model=ProjectRead)
-def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(get_db)):
+def update_project(
+    project_id: int,
+    data: ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["projects:write"]),
+):
     project = _get_project(db, project_id)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(project, field, value)
@@ -85,9 +94,11 @@ def update_project(project_id: int, data: ProjectUpdate, db: Session = Depends(g
     db.refresh(project)
     return project
 
-
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: int, db: Session = Depends(get_db)):
-    # Cascada: el ORM borra también sus tareas (ver models.py)
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Security(get_current_user, scopes=["projects:write"]),
+):
     db.delete(_get_project(db, project_id))
     db.commit()

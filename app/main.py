@@ -8,7 +8,7 @@ from app.config import CORS_ORIGINS
 from app.database import Base, engine
 from app.exceptions import register_exception_handlers
 from app.middleware import process_time_middleware, request_id_middleware
-from app.routers import categories, projects, tasks, users
+from app.routers import categories, projects, tasks, users, auth
 # Formato del log del servidor: aquí queda el detalle completo de los errores.
 logging.basicConfig(
     level=logging.INFO,
@@ -18,6 +18,7 @@ logging.basicConfig(
 Base.metadata.create_all(bind=engine)
 
 tags_metadata = [
+    {"name": "auth", "description": "Registro, login y refresco de tokens JWT"},
     {"name": "tasks", "description": "Gestión de tareas"},
     {"name": "projects", "description": "Gestión de proyectos"},
     {"name": "users", "description": "Gestión de usuarios"},
@@ -35,12 +36,9 @@ app.middleware("http")(process_time_middleware)
 app.middleware("http")(request_id_middleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,  # por defecto http://localhost:5173
+    allow_origins=CORS_ORIGINS, 
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
-    # Por defecto el navegador oculta al JavaScript las cabeceras de respuesta
-    # que no son estándar. Exponerlas permite al frontend leer el tiempo de
-    # proceso y el id de petición (para reportar errores).
     expose_headers=["X-Process-Time", "X-Request-ID"],
 )
 
@@ -48,3 +46,4 @@ app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(categories.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")

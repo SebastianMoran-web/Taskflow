@@ -11,8 +11,9 @@ a todos los proyectos.
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, String, Column, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship, declarative_base
+from pydantic import BaseModel
 
 from app.database import Base
 
@@ -22,6 +23,8 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(50), unique=True)
+    hashed_password: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default="user")  # "user" o "admin"
     email: Mapped[str] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
